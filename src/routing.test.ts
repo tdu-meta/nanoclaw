@@ -22,6 +22,11 @@ describe('JID ownership patterns', () => {
     const jid = '12345678@s.whatsapp.net';
     expect(jid.endsWith('@s.whatsapp.net')).toBe(true);
   });
+
+  it('Feishu JID: starts with feishu:', () => {
+    const jid = 'feishu:oc_123456';
+    expect(jid.startsWith('feishu:')).toBe(true);
+  });
 });
 
 // --- getAvailableGroups ---

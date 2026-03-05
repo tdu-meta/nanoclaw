@@ -3,6 +3,9 @@ import path from 'path';
 
 import {
   ASSISTANT_NAME,
+  FEISHU_APP_ID,
+  FEISHU_APP_SECRET,
+  FEISHU_ONLY,
   IDLE_TIMEOUT,
   POLL_INTERVAL,
   TIMEZONE,
@@ -13,6 +16,7 @@ import {
   getChannelFactory,
   getRegisteredChannelNames,
 } from './channels/registry.js';
+
 import {
   ContainerOutput,
   runContainerAgent,
@@ -528,6 +532,7 @@ async function main(): Promise<void> {
   if (channels.length === 0) {
     logger.fatal('No channels connected');
     process.exit(1);
+
   }
 
   // Start subsystems (independently of connection handler)

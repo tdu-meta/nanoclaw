@@ -34,6 +34,28 @@ Text inside `<internal>` tags is logged but not sent to the user. If you've alre
 
 When working as a sub-agent or teammate, only use `send_message` if instructed to by the main agent.
 
+## Model Routing
+
+You can delegate tasks to sub-agents running different Claude models using the `Task` tool with the `model` parameter. Choose the model based on task complexity:
+
+| Model | When to use |
+|-------|-------------|
+| `haiku` | Quick lookups, simple Q&A, translations, formatting, summarizing short text |
+| `sonnet` | Most tasks — web research, file operations, moderate analysis, writing |
+| `opus` | Complex reasoning, multi-step planning, long document analysis, coding architecture decisions |
+
+**Guidelines:**
+- Default to `sonnet` for most work
+- Use `haiku` when speed matters and the task is straightforward
+- Use `opus` only when the task genuinely requires deep reasoning
+- For multi-step work, use `opus` to plan and `sonnet`/`haiku` to execute
+
+Example:
+```
+Task(model: "haiku", prompt: "Summarize this article: ...")
+Task(model: "opus", prompt: "Analyze the tradeoffs between these 3 architectures...")
+```
+
 ## Memory
 
 The `conversations/` folder contains searchable history of past conversations. Use this to recall context from previous sessions.

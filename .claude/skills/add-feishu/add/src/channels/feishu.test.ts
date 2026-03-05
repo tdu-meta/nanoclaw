@@ -255,4 +255,62 @@ describe('FeishuChannel', () => {
       );
     });
   });
+
+  describe('sendMessage', () => {
+    it('sends message via Feishu API', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      await channel.sendMessage('feishu:oc_123456', 'Hello');
+
+      expect(mockMessageCreate).toHaveBeenCalledWith({
+        params: { receive_id_type: 'chat_id' },
+        data: {
+          receive_id: 'oc_123456',
+          msg_type: 'text',
+          content: JSON.stringify({ text: 'Hello' }),
+        },
+      });
+    });
+
+    it('strips feishu: prefix from JID', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      await channel.sendMessage('feishu:oc_987654', 'Test message');
+
+      expect(mockMessageCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            receive_id: 'oc_987654',
+          }),
+        }),
+      );
+    });
+
+    it('handles send failure gracefully', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      mockMessageCreate.mockRejectedValueOnce(new Error('Network error'));
+
+      // Should not throw
+      await expect(
+        channel.sendMessage('feishu:oc_123456', 'Will fail'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('does nothing when client is not initialized', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+
+      // Don't connect — client is null
+      await channel.sendMessage('feishu:oc_123456', 'No client');
+
+      expect(mockMessageCreate).not.toHaveBeenCalled();
+    });
+  });
 });

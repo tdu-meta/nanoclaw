@@ -187,4 +187,72 @@ describe('FeishuChannel', () => {
       expect(opts.onMessage).not.toHaveBeenCalled();
     });
   });
+
+  describe('media messages', () => {
+    it('handles image messages with placeholder', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      channel._handleMessage({
+        message: {
+          chat_id: 'oc_123456',
+          message_id: 'msg_img',
+          message_type: 'image',
+          content: JSON.stringify({ image_key: 'img_key_123' }),
+          create_time: '1704067200000',
+        },
+        sender: { sender_id: { open_id: 'ou_user123' } },
+      });
+
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'feishu:oc_123456',
+        expect.objectContaining({ content: '[Image]' }),
+      );
+    });
+
+    it('handles file messages with filename', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      channel._handleMessage({
+        message: {
+          chat_id: 'oc_123456',
+          message_id: 'msg_file',
+          message_type: 'file',
+          content: JSON.stringify({ file_key: 'file_key_123', file_name: 'report.pdf' }),
+          create_time: '1704067200000',
+        },
+        sender: { sender_id: { open_id: 'ou_user123' } },
+      });
+
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'feishu:oc_123456',
+        expect.objectContaining({ content: '[File: report.pdf]' }),
+      );
+    });
+
+    it('handles unknown message types gracefully', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      channel._handleMessage({
+        message: {
+          chat_id: 'oc_123456',
+          message_id: 'msg_unknown',
+          message_type: 'interactive',
+          content: '{}',
+          create_time: '1704067200000',
+        },
+        sender: { sender_id: { open_id: 'ou_user123' } },
+      });
+
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'feishu:oc_123456',
+        expect.objectContaining({ content: '[interactive]' }),
+      );
+    });
+  });
 });

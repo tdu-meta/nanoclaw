@@ -130,4 +130,61 @@ describe('FeishuChannel', () => {
       expect(mockStop).toHaveBeenCalled();
     });
   });
+
+  describe('message handling', () => {
+    it('delivers text message for registered group', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      // Simulate incoming message via the event handler
+      channel._handleMessage({
+        message: {
+          chat_id: 'oc_123456',
+          message_id: 'msg_001',
+          message_type: 'text',
+          content: JSON.stringify({ text: 'Hello from Feishu' }),
+          create_time: '1704067200000',
+        },
+        sender: {
+          sender_id: { open_id: 'ou_user123' },
+          sender_type: 'user',
+        },
+        event: { sender: { sender_id: { open_id: 'ou_user123' } } },
+      });
+
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'feishu:oc_123456',
+        expect.objectContaining({
+          id: 'msg_001',
+          chat_jid: 'feishu:oc_123456',
+          content: 'Hello from Feishu',
+          is_from_me: false,
+        }),
+      );
+    });
+
+    it('ignores messages from unregistered chats', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      await channel.connect();
+
+      channel._handleMessage({
+        message: {
+          chat_id: 'oc_unknown',
+          message_id: 'msg_002',
+          message_type: 'text',
+          content: JSON.stringify({ text: 'Unregistered chat' }),
+          create_time: '1704067200000',
+        },
+        sender: {
+          sender_id: { open_id: 'ou_user123' },
+          sender_type: 'user',
+        },
+        event: { sender: { sender_id: { open_id: 'ou_user123' } } },
+      });
+
+      expect(opts.onMessage).not.toHaveBeenCalled();
+    });
+  });
 });

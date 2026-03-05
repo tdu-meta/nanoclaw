@@ -1,0 +1,133 @@
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+
+// --- Mocks ---
+
+vi.mock('../config.js', () => ({
+  ASSISTANT_NAME: 'Andy',
+  TRIGGER_PATTERN: /^@Andy\b/i,
+}));
+
+vi.mock('../logger.js', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+// Create mock functions that we can reference after import
+const mockStart = vi.fn().mockResolvedValue(undefined);
+const mockStop = vi.fn();
+const mockMessageCreate = vi.fn().mockResolvedValue({ data: { message_id: 'msg_123' } });
+const mockFileCreate = vi.fn().mockResolvedValue({ data: { file_key: 'file_123' } });
+const mockImageCreate = vi.fn().mockResolvedValue({ data: { image_key: 'img_123' } });
+
+// Mock Feishu SDK with inline class definitions
+vi.mock('@larksuiteoapi/node-sdk', () => {
+  return {
+    Client: class MockClient {
+      im = {
+        message: {
+          create: mockMessageCreate,
+        },
+        file: {
+          create: mockFileCreate,
+        },
+        image: {
+          create: mockImageCreate,
+        },
+      };
+    },
+    WSClient: class MockWSClient {
+      start = mockStart;
+      stop = mockStop;
+    },
+  };
+});
+
+import { FeishuChannel, FeishuChannelOpts } from './feishu.js';
+
+// --- Test helpers ---
+
+function createTestOpts(overrides?: Partial<FeishuChannelOpts>): FeishuChannelOpts {
+  return {
+    onMessage: vi.fn(),
+    onChatMetadata: vi.fn(),
+    registeredGroups: vi.fn(() => ({
+      'feishu:oc_123456': {
+        name: 'Test Group',
+        folder: 'test-group',
+        trigger: '@Andy',
+        added_at: '2024-01-01T00:00:00.000Z',
+      },
+    })),
+    ...overrides,
+  };
+}
+
+// --- Tests ---
+
+describe('FeishuChannel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('channel properties', () => {
+    it('has name "feishu"', () => {
+      const channel = new FeishuChannel('app_id', 'app_secret', createTestOpts());
+      expect(channel.name).toBe('feishu');
+    });
+  });
+
+  describe('ownsJid', () => {
+    it('owns feishu: JIDs', () => {
+      const channel = new FeishuChannel('app_id', 'app_secret', createTestOpts());
+      expect(channel.ownsJid('feishu:oc_123456')).toBe(true);
+    });
+
+    it('does not own WhatsApp JIDs', () => {
+      const channel = new FeishuChannel('app_id', 'app_secret', createTestOpts());
+      expect(channel.ownsJid('12345@g.us')).toBe(false);
+    });
+
+    it('does not own Telegram JIDs', () => {
+      const channel = new FeishuChannel('app_id', 'app_secret', createTestOpts());
+      expect(channel.ownsJid('tg:123456')).toBe(false);
+    });
+  });
+
+  describe('connection lifecycle', () => {
+    it('isConnected() returns false before connect', () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+      expect(channel.isConnected()).toBe(false);
+    });
+
+    it('resolves connect() when WebSocket starts', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+
+      await channel.connect();
+
+      expect(channel.isConnected()).toBe(true);
+      expect(mockStart).toHaveBeenCalled();
+    });
+
+    it('disconnects cleanly', async () => {
+      const opts = createTestOpts();
+      const channel = new FeishuChannel('app_id', 'app_secret', opts);
+
+      await channel.connect();
+      expect(channel.isConnected()).toBe(true);
+
+      await channel.disconnect();
+      expect(channel.isConnected()).toBe(false);
+      expect(mockStop).toHaveBeenCalled();
+    });
+  });
+});

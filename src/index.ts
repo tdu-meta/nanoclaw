@@ -3,9 +3,6 @@ import path from 'path';
 
 import {
   ASSISTANT_NAME,
-  FEISHU_APP_ID,
-  FEISHU_APP_SECRET,
-  FEISHU_ONLY,
   IDLE_TIMEOUT,
   POLL_INTERVAL,
   TIMEZONE,
@@ -34,7 +31,6 @@ import {
   getAllTasks,
   getMessagesSince,
   getNewMessages,
-  getRegisteredGroup,
   getRouterState,
   initDatabase,
   setRegisteredGroup,
@@ -166,7 +162,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   if (missedMessages.length === 0) return true;
 
   // For non-main groups, check if trigger is required and present
-  if (!isMainGroup && group.requiresTrigger !== false) {
+  // Feishu groups skip the trigger requirement — any message fires the agent
+  const isFeishu = channel.name === 'feishu';
+  if (!isMainGroup && !isFeishu && group.requiresTrigger !== false) {
     const allowlistCfg = loadSenderAllowlist();
     const hasTrigger = missedMessages.some(
       (m) =>
@@ -204,6 +202,9 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }, IDLE_TIMEOUT);
   };
 
+  if (channel.name === 'feishu') {
+    await channel.sendMessage(chatJid, '收到');
+  }
   await channel.setTyping?.(chatJid, true);
   let hadError = false;
   let outputSentToUser = false;
@@ -389,7 +390,9 @@ async function startMessageLoop(): Promise<void> {
           }
 
           const isMainGroup = group.isMain === true;
-          const needsTrigger = !isMainGroup && group.requiresTrigger !== false;
+          const isFeishuGroup = channel.name === 'feishu';
+          const needsTrigger =
+            !isMainGroup && !isFeishuGroup && group.requiresTrigger !== false;
 
           // For non-main groups, only act on trigger messages.
           // Non-trigger messages accumulate in DB and get pulled as
@@ -502,6 +505,12 @@ async function main(): Promise<void> {
         }
       }
       storeMessage(msg);
+      // Trigger immediate processing for registered groups so messages
+      // aren't missed when the global poll cursor is ahead (e.g. Feishu
+      // messages with older timestamps than recent WhatsApp messages).
+      if (!msg.is_bot_message && registeredGroups[chatJid]) {
+        queue.enqueueMessageCheck(chatJid);
+      }
     },
     onChatMetadata: (
       chatJid: string,
@@ -528,12 +537,10 @@ async function main(): Promise<void> {
     }
     channels.push(channel);
     await channel.connect();
-
   }
   if (channels.length === 0) {
     logger.fatal('No channels connected');
     process.exit(1);
-
   }
 
   // Start subsystems (independently of connection handler)

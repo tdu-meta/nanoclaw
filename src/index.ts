@@ -3,6 +3,7 @@ import path from 'path';
 
 import {
   ASSISTANT_NAME,
+  DATA_DIR,
   IDLE_TIMEOUT,
   POLL_INTERVAL,
   TIMEZONE,
@@ -20,6 +21,7 @@ import {
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
+import { writeStatusHeartbeat } from './status-heartbeat.js';
 import {
   cleanupOrphans,
   ensureContainerRuntimeRunning,
@@ -475,9 +477,16 @@ async function main(): Promise<void> {
   logger.info('Database initialized');
   loadState();
 
+  // Heartbeat interval handle — declared before shutdown so it can be cleared.
+  let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
+
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutdown signal received');
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    try {
+      fs.unlinkSync(path.join(DATA_DIR, 'status.json'));
+    } catch {}
     await queue.shutdown(10000);
     for (const ch of channels) await ch.disconnect();
     process.exit(0);
@@ -542,6 +551,18 @@ async function main(): Promise<void> {
     logger.fatal('No channels connected');
     process.exit(1);
   }
+
+  // Status heartbeat — write immediately, then every 10 seconds
+  const getChannelStatuses = () =>
+    channels.map((ch) => ({ name: ch.name, connected: ch.isConnected() }));
+  writeStatusHeartbeat(DATA_DIR, getChannelStatuses());
+  heartbeatInterval = setInterval(() => {
+    try {
+      writeStatusHeartbeat(DATA_DIR, getChannelStatuses());
+    } catch {
+      // Non-critical: dashboard heartbeat write failed
+    }
+  }, 10_000);
 
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({

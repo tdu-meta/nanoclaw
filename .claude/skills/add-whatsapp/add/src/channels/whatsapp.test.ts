@@ -88,6 +88,7 @@ vi.mock('@whiskeysockets/baileys', () => {
       .fn()
       .mockResolvedValue({ version: [2, 3000, 0] }),
     normalizeMessageContent: vi.fn((content: unknown) => content),
+    downloadMediaMessage: vi.fn().mockResolvedValue(Buffer.alloc(0)),
     makeCacheableSignalKeyStore: vi.fn((keys: unknown) => keys),
     useMultiFileAuthState: vi.fn().mockResolvedValue({
       state: {
@@ -555,8 +556,11 @@ describe('WhatsAppChannel', () => {
         },
       ]);
 
-      // Skipped — no text content to process
-      expect(opts.onMessage).not.toHaveBeenCalled();
+      // Voice notes are now transcribed; delivered with fallback when transcription unavailable
+      expect(opts.onMessage).toHaveBeenCalledWith(
+        'registered@g.us',
+        expect.objectContaining({ content: expect.stringContaining('[Voice') }),
+      );
     });
 
     it('uses sender JID when pushName is absent', async () => {

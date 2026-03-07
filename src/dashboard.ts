@@ -364,11 +364,12 @@ function main(): void {
   process.stdin.setEncoding('utf8');
 
   process.stdin.on('data', (key: string) => {
-    if (key === 'q' || key === '\u0003') {
+    const k = key.trim();
+    if (k === 'q' || key === '\u0003') {
       // q or Ctrl+C
       cleanup();
-    } else if (key in WINDOWS) {
-      currentWindow = key as WindowKey;
+    } else if (k in WINDOWS) {
+      currentWindow = k as WindowKey;
       process.stdout.write(render());
     }
   });

@@ -12,6 +12,8 @@ import makeWASocket, {
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 
+import { isVoiceMessage, transcribeAudioMessage } from '../transcription.js';
+
 import {
   ASSISTANT_HAS_OWN_NUMBER,
   ASSISTANT_NAME,
@@ -203,12 +205,26 @@ export class WhatsAppChannel implements Channel {
           // Only deliver full message for registered groups
           const groups = this.opts.registeredGroups();
           if (groups[chatJid]) {
-            const content =
+            let content =
               normalized.conversation ||
               normalized.extendedTextMessage?.text ||
               normalized.imageMessage?.caption ||
               normalized.videoMessage?.caption ||
               '';
+
+            // Transcribe voice messages (PTT audio)
+            if (isVoiceMessage(msg)) {
+              try {
+                const transcript = await transcribeAudioMessage(msg, this.sock!);
+                if (transcript) {
+                  content = `[Voice: ${transcript}]`;
+                } else {
+                  content = '[Voice Message - transcription unavailable]';
+                }
+              } catch {
+                content = '[Voice Message - transcription failed]';
+              }
+            }
 
             // Skip protocol messages with no text content (encryption keys, read receipts, etc.)
             if (!content) continue;

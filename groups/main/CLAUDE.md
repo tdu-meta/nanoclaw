@@ -65,6 +65,26 @@ When you learn something important:
 - Split files larger than 500 lines into folders
 - Keep an index in your memory for the files you create
 
+## Audio Transcription
+
+To transcribe audio (YouTube videos without captions, downloaded files, etc.), use the pre-installed `openai` Python package with the `OPENAI_API_KEY` env var. Do NOT try to install `whisper` locally or create virtual environments.
+
+```bash
+# Download audio from YouTube
+yt-dlp -x --audio-format mp3 -o /tmp/audio.mp3 "https://youtube.com/watch?v=VIDEO_ID"
+
+# Transcribe via OpenAI Whisper API
+python3 -c "
+import openai, os
+client = openai.OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+with open('/tmp/audio.mp3', 'rb') as f:
+    result = client.audio.transcriptions.create(model='whisper-1', file=f)
+print(result.text)
+"
+```
+
+For already-downloaded audio (e.g. `/tmp/segment.m4a`), skip the yt-dlp step and transcribe directly.
+
 ## WhatsApp Formatting (and other messaging apps)
 
 Do NOT use markdown headings (##) in WhatsApp messages. Only use:

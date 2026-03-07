@@ -30,6 +30,10 @@ RUN apt-get update && apt-get install -y \
 ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
+# Install yt-dlp, ffmpeg, and Python tools for audio/transcript extraction
+RUN apt-get update && apt-get install -y python3-pip ffmpeg --no-install-recommends && rm -rf /var/lib/apt/lists/* \
+    && pip3 install youtube-transcript-api yt-dlp openai --break-system-packages
+
 # Install agent-browser and claude-code globally
 RUN npm install -g agent-browser @anthropic-ai/claude-code
 

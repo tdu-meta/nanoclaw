@@ -105,13 +105,21 @@ function render(): string {
   const successEntries = logEntries.filter(
     (e) => !e.timedOut && e.exitCode === 0,
   );
-  const latencyStats = computeLatencyStats(successEntries.map((e) => e.durationMs));
+  const latencyStats = computeLatencyStats(
+    successEntries.map((e) => e.durationMs),
+  );
 
   // Container counts
   const totalContainers = logEntries.length;
-  const errorEntries = logEntries.filter((e) => e.exitCode !== 0 && !e.timedOut);
-  const timeoutEntries = logEntries.filter((e) => e.timedOut && !e.hadStreamingOutput);
-  const idleCleanupEntries = logEntries.filter((e) => e.timedOut && e.hadStreamingOutput);
+  const errorEntries = logEntries.filter(
+    (e) => e.exitCode !== 0 && !e.timedOut,
+  );
+  const timeoutEntries = logEntries.filter(
+    (e) => e.timedOut && !e.hadStreamingOutput,
+  );
+  const idleCleanupEntries = logEntries.filter(
+    (e) => e.timedOut && e.hadStreamingOutput,
+  );
 
   // --- Errors ---
   const taskErrors = db ? queryTaskRunErrors(db, win.ms) : [];
@@ -134,9 +142,7 @@ function render(): string {
   const headerInner = ` ${colorize(headerTitle, Color.Bold)}  ${windowLabel}  ${timeLabel} `;
   const headerInnerVisible = ` ${headerTitle}  [${win.label}]  ${timeStr} `;
   const topFill = Math.max(0, width - 2 - headerInnerVisible.length);
-  lines.push(
-    '\u250c' + headerInner + '\u2500'.repeat(topFill) + '\u2510',
-  );
+  lines.push('\u250c' + headerInner + '\u2500'.repeat(topFill) + '\u2510');
 
   // --- STATUS / CHANNELS / GROUPS row ---
   const statusLines: string[] = [];
@@ -185,7 +191,11 @@ function render(): string {
 
   // Combine status/channels/groups as a 3-column layout inside the box
   const colWidth = Math.floor(width / 3);
-  const maxStatusRows = Math.max(statusLines.length, channelLines.length, groupLines.length);
+  const maxStatusRows = Math.max(
+    statusLines.length,
+    channelLines.length,
+    groupLines.length,
+  );
   for (let i = 0; i < maxStatusRows; i++) {
     const s = padRight(statusLines[i] ?? '', colWidth);
     const c = padRight(channelLines[i] ?? '', colWidth);
@@ -217,8 +227,16 @@ function render(): string {
     latencyContent.push(colorize(`  n=${latencyStats.count}`, Color.Gray));
   }
 
-  const volumeBox = box(`MESSAGE VOLUME (${win.label})`, volumeContent, halfWidth);
-  const latencyBox = box(`RESPONSE LATENCY (${win.label})`, latencyContent, halfWidth);
+  const volumeBox = box(
+    `MESSAGE VOLUME (${win.label})`,
+    volumeContent,
+    halfWidth,
+  );
+  const latencyBox = box(
+    `RESPONSE LATENCY (${win.label})`,
+    latencyContent,
+    halfWidth,
+  );
   for (const row of sideBySide(volumeBox, latencyBox, halfWidth, halfWidth)) {
     lines.push(row);
   }
@@ -236,15 +254,32 @@ function render(): string {
   ];
 
   const errorContent: string[] = [];
-  if (taskErrors.length === 0) {
+  if (taskErrors.length === 0 && errorEntries.length === 0) {
     errorContent.push(`  ${colorize('0 errors ✓', Color.Green)}`);
   } else {
-    for (const e of taskErrors.slice(0, 5)) {
-      const ago = formatAgo(e.runAt);
-      errorContent.push(`  ${colorize('✗', Color.Red)} [${ago}] ${e.error.slice(0, 30)}`);
+    const MAX_ERRORS = 5;
+    let shown = 0;
+    for (const e of errorEntries) {
+      if (shown >= MAX_ERRORS) break;
+      const ago = formatAgo(e.timestamp);
+      errorContent.push(
+        `  ${colorize('✗', Color.Red)} [${ago}] ${e.group} exit=${e.exitCode}`,
+      );
+      shown++;
     }
-    if (taskErrors.length > 5) {
-      errorContent.push(colorize(`  ...and ${taskErrors.length - 5} more`, Color.Gray));
+    for (const e of taskErrors) {
+      if (shown >= MAX_ERRORS) break;
+      const ago = formatAgo(e.runAt);
+      errorContent.push(
+        `  ${colorize('✗', Color.Red)} [${ago}] ${e.error.slice(0, 30)}`,
+      );
+      shown++;
+    }
+    const totalErrors = errorEntries.length + taskErrors.length;
+    if (totalErrors > MAX_ERRORS) {
+      errorContent.push(
+        colorize(`  ...and ${totalErrors - MAX_ERRORS} more`, Color.Gray),
+      );
     }
   }
 
@@ -268,12 +303,15 @@ function render(): string {
         `Completed: ${taskSummary.completed}`,
     );
     if (taskSummary.nextRun) {
-      const nextAgo = new Date(taskSummary.nextRun.next_run).toLocaleString([], {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      const nextAgo = new Date(taskSummary.nextRun.next_run).toLocaleString(
+        [],
+        {
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        },
+      );
       const prompt = taskSummary.nextRun.prompt.slice(0, 50);
       taskContent.push(`  Next: ${nextAgo}  "${prompt}"`);
     } else {
@@ -291,10 +329,13 @@ function render(): string {
     ' [1] 1h  [6] 6h  [d] 24h  [w] 7d  [q] quit ',
     Color.Gray,
   );
-  const footerFill = Math.max(0, width - 2 - ' [1] 1h  [6] 6h  [d] 24h  [w] 7d  [q] quit '.length);
+  const footerFill = Math.max(
+    0,
+    width - 2 - ' [1] 1h  [6] 6h  [d] 24h  [w] 7d  [q] quit '.length,
+  );
   lines.push('\u2514' + footerHints + ' '.repeat(footerFill) + '\u2518');
 
-  return clearScreen() + hideCursor() + lines.join('\n') + '\n';
+  return clearScreen() + lines.join('\n') + '\n';
 }
 
 // ---------------------------------------------------------------------------
@@ -311,6 +352,9 @@ function main(): void {
 
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
+  process.on('exit', () => {
+    process.stdout.write(showCursor());
+  });
 
   // Raw mode for keypress detection
   if (process.stdin.isTTY) {

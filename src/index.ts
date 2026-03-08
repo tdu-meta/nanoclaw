@@ -4,7 +4,10 @@ import path from 'path';
 import {
   ASSISTANT_NAME,
   DATA_DIR,
+  DEFAULT_AGENT_MODEL,
+  GROUPS_DIR,
   IDLE_TIMEOUT,
+  MODEL_ALIASES,
   POLL_INTERVAL,
   TIMEZONE,
   TRIGGER_PATTERN,
@@ -89,6 +92,15 @@ function saveState(): void {
   setRouterState('last_agent_timestamp', JSON.stringify(lastAgentTimestamp));
 }
 
+function getGroupModel(groupFolder: string): string | undefined {
+  const modelFile = path.join(GROUPS_DIR, groupFolder, 'model.txt');
+  try {
+    const model = fs.readFileSync(modelFile, 'utf-8').trim();
+    if (model) return model;
+  } catch {}
+  return DEFAULT_AGENT_MODEL;
+}
+
 function registerGroup(jid: string, group: RegisteredGroup): void {
   let groupDir: string;
   try {
@@ -162,6 +174,48 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   );
 
   if (missedMessages.length === 0) return true;
+
+  // Handle /model command — intercept before agent spawn
+  const lastMsg = missedMessages[missedMessages.length - 1];
+  const modelMatch = lastMsg.content
+    .trim()
+    .match(/^(?:@\S+\s+)?\/model\s*(.*)$/i);
+  if (modelMatch) {
+    const requested = modelMatch[1].trim().toLowerCase();
+    const modelFile = path.join(GROUPS_DIR, group.folder, 'model.txt');
+    const channel = findChannel(channels, chatJid);
+
+    if (!requested) {
+      // Show current model
+      let current = DEFAULT_AGENT_MODEL || '(default)';
+      try {
+        current = fs.readFileSync(modelFile, 'utf-8').trim() || current;
+      } catch {}
+      const aliasNames = Object.entries(MODEL_ALIASES)
+        .map(([k, v]) => `${k} → ${v}`)
+        .join('\n');
+      await channel?.sendMessage(
+        chatJid,
+        `Current model: ${current}\n\nAvailable aliases:\n${aliasNames}`,
+      );
+    } else if (requested === 'reset' || requested === 'default') {
+      try {
+        fs.unlinkSync(modelFile);
+      } catch {}
+      await channel?.sendMessage(
+        chatJid,
+        `Model reset to default${DEFAULT_AGENT_MODEL ? ` (${DEFAULT_AGENT_MODEL})` : ''}`,
+      );
+    } else {
+      const resolved = MODEL_ALIASES[requested] || requested;
+      fs.mkdirSync(path.dirname(modelFile), { recursive: true });
+      fs.writeFileSync(modelFile, resolved);
+      await channel?.sendMessage(chatJid, `Model set to ${resolved}`);
+    }
+    lastAgentTimestamp[chatJid] = lastMsg.timestamp;
+    saveState();
+    return true;
+  }
 
   // For non-main groups, check if trigger is required and present
   // Feishu groups skip the trigger requirement — any message fires the agent
@@ -319,6 +373,7 @@ async function runAgent(
         chatJid,
         isMain,
         assistantName: ASSISTANT_NAME,
+        model: getGroupModel(group.folder),
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),

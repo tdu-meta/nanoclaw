@@ -27,7 +27,9 @@ function filenameToDate(filename: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function parseLogContent(content: string): Omit<ContainerLogEntry, 'group'> & { group: string } | null {
+function parseLogContent(
+  content: string,
+): (Omit<ContainerLogEntry, 'group'> & { group: string }) | null {
   const lines = content.split('\n');
   if (lines.length === 0) return null;
 
@@ -76,7 +78,8 @@ export function parseContainerLogs(
 
   let groupFolders: string[];
   try {
-    groupFolders = fs.readdirSync(groupsDir, { withFileTypes: true })
+    groupFolders = fs
+      .readdirSync(groupsDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name);
   } catch {
@@ -89,7 +92,9 @@ export function parseContainerLogs(
     const logDir = path.join(groupsDir, folder, 'logs');
     let logFiles: string[];
     try {
-      logFiles = fs.readdirSync(logDir).filter((f) => f.startsWith('container-') && f.endsWith('.log'));
+      logFiles = fs
+        .readdirSync(logDir)
+        .filter((f) => f.startsWith('container-') && f.endsWith('.log'));
     } catch {
       continue;
     }

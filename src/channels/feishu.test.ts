@@ -309,8 +309,9 @@ describe('FeishuChannel', () => {
     });
 
     it('factory returns null when credentials are missing', () => {
+      const appId = '';
       const factory = (o: ChannelOpts) =>
-        '' && 'secret' ? new FeishuChannel('', 'secret', o) : null;
+        appId && 'secret' ? new FeishuChannel(appId, 'secret', o) : null;
       expect(factory(opts)).toBeNull();
     });
   });

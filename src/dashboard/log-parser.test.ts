@@ -27,16 +27,20 @@ describe('parseContainerLogs', () => {
   });
 
   it('parses a successful container log', () => {
-    writeLog('main', 'container-2026-03-06T07-22-33-998Z.log', [
-      '=== Container Run Log ===',
-      'Timestamp: 2026-03-06T07:22:33.998Z',
-      'Group: Main',
-      'IsMain: false',
-      'Duration: 3557139ms',
-      'Exit Code: 0',
-      'Stdout Truncated: false',
-      'Stderr Truncated: false',
-    ].join('\n'));
+    writeLog(
+      'main',
+      'container-2026-03-06T07-22-33-998Z.log',
+      [
+        '=== Container Run Log ===',
+        'Timestamp: 2026-03-06T07:22:33.998Z',
+        'Group: Main',
+        'IsMain: false',
+        'Duration: 3557139ms',
+        'Exit Code: 0',
+        'Stdout Truncated: false',
+        'Stderr Truncated: false',
+      ].join('\n'),
+    );
 
     const entries = parseContainerLogs(tmpDir);
     expect(entries).toHaveLength(1);
@@ -51,15 +55,19 @@ describe('parseContainerLogs', () => {
   });
 
   it('parses a timeout log and detects TIMEOUT in first line', () => {
-    writeLog('feishu-main', 'container-2026-03-06T01-07-59-651Z.log', [
-      '=== Container Run Log (TIMEOUT) ===',
-      'Timestamp: 2026-03-06T01:07:59.651Z',
-      'Group: Feishu Main',
-      'Container: nanoclaw-feishu-main-1772756555264',
-      'Duration: 2724390ms',
-      'Exit Code: 137',
-      'Had Streaming Output: true',
-    ].join('\n'));
+    writeLog(
+      'feishu-main',
+      'container-2026-03-06T01-07-59-651Z.log',
+      [
+        '=== Container Run Log (TIMEOUT) ===',
+        'Timestamp: 2026-03-06T01:07:59.651Z',
+        'Group: Feishu Main',
+        'Container: nanoclaw-feishu-main-1772756555264',
+        'Duration: 2724390ms',
+        'Exit Code: 137',
+        'Had Streaming Output: true',
+      ].join('\n'),
+    );
 
     const entries = parseContainerLogs(tmpDir);
     expect(entries).toHaveLength(1);
@@ -75,24 +83,33 @@ describe('parseContainerLogs', () => {
 
   it('filters by time window (old logs excluded, recent logs included)', () => {
     // "Old" log: filename timestamp far in the past
-    writeLog('main', 'container-2020-01-01T00-00-00-000Z.log', [
-      '=== Container Run Log ===',
-      'Timestamp: 2020-01-01T00:00:00.000Z',
-      'Group: Main',
-      'Duration: 1000ms',
-      'Exit Code: 0',
-    ].join('\n'));
+    writeLog(
+      'main',
+      'container-2020-01-01T00-00-00-000Z.log',
+      [
+        '=== Container Run Log ===',
+        'Timestamp: 2020-01-01T00:00:00.000Z',
+        'Group: Main',
+        'Duration: 1000ms',
+        'Exit Code: 0',
+      ].join('\n'),
+    );
 
     // "Recent" log: filename timestamp = now
     const now = new Date();
-    const fname = 'container-' + now.toISOString().replace(/[:.]/g, '-') + '.log';
-    writeLog('main', fname, [
-      '=== Container Run Log ===',
-      `Timestamp: ${now.toISOString()}`,
-      'Group: Main',
-      'Duration: 2000ms',
-      'Exit Code: 0',
-    ].join('\n'));
+    const fname =
+      'container-' + now.toISOString().replace(/[:.]/g, '-') + '.log';
+    writeLog(
+      'main',
+      fname,
+      [
+        '=== Container Run Log ===',
+        `Timestamp: ${now.toISOString()}`,
+        'Group: Main',
+        'Duration: 2000ms',
+        'Exit Code: 0',
+      ].join('\n'),
+    );
 
     // Window of 1 hour — should only include the recent log
     const entries = parseContainerLogs(tmpDir, 60 * 60 * 1000);
@@ -107,29 +124,41 @@ describe('parseContainerLogs', () => {
   });
 
   it('returns entries sorted by timestamp', () => {
-    writeLog('main', 'container-2026-03-06T10-00-00-000Z.log', [
-      '=== Container Run Log ===',
-      'Timestamp: 2026-03-06T10:00:00.000Z',
-      'Group: Main',
-      'Duration: 1000ms',
-      'Exit Code: 0',
-    ].join('\n'));
+    writeLog(
+      'main',
+      'container-2026-03-06T10-00-00-000Z.log',
+      [
+        '=== Container Run Log ===',
+        'Timestamp: 2026-03-06T10:00:00.000Z',
+        'Group: Main',
+        'Duration: 1000ms',
+        'Exit Code: 0',
+      ].join('\n'),
+    );
 
-    writeLog('main', 'container-2026-03-06T08-00-00-000Z.log', [
-      '=== Container Run Log ===',
-      'Timestamp: 2026-03-06T08:00:00.000Z',
-      'Group: Main',
-      'Duration: 2000ms',
-      'Exit Code: 0',
-    ].join('\n'));
+    writeLog(
+      'main',
+      'container-2026-03-06T08-00-00-000Z.log',
+      [
+        '=== Container Run Log ===',
+        'Timestamp: 2026-03-06T08:00:00.000Z',
+        'Group: Main',
+        'Duration: 2000ms',
+        'Exit Code: 0',
+      ].join('\n'),
+    );
 
-    writeLog('other', 'container-2026-03-06T09-00-00-000Z.log', [
-      '=== Container Run Log ===',
-      'Timestamp: 2026-03-06T09:00:00.000Z',
-      'Group: Other',
-      'Duration: 3000ms',
-      'Exit Code: 0',
-    ].join('\n'));
+    writeLog(
+      'other',
+      'container-2026-03-06T09-00-00-000Z.log',
+      [
+        '=== Container Run Log ===',
+        'Timestamp: 2026-03-06T09:00:00.000Z',
+        'Group: Other',
+        'Duration: 3000ms',
+        'Exit Code: 0',
+      ].join('\n'),
+    );
 
     const entries = parseContainerLogs(tmpDir);
     expect(entries).toHaveLength(3);

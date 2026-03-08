@@ -9,16 +9,26 @@ import { readEnvFile } from './env.js';
 const envConfig = readEnvFile([
   'ASSISTANT_NAME',
   'ASSISTANT_HAS_OWN_NUMBER',
+  'AGENT_MODEL',
   'FEISHU_APP_ID',
   'FEISHU_APP_SECRET',
   'FEISHU_ONLY',
 ]);
+
+// Model aliases for convenience
+export const MODEL_ALIASES: Record<string, string> = {
+  opus: 'claude-opus-4-6',
+  sonnet: 'claude-sonnet-4-6',
+  haiku: 'claude-haiku-4-5-20251001',
+};
 
 export const ASSISTANT_NAME =
   process.env.ASSISTANT_NAME || envConfig.ASSISTANT_NAME || 'Andy';
 export const ASSISTANT_HAS_OWN_NUMBER =
   (process.env.ASSISTANT_HAS_OWN_NUMBER ||
     envConfig.ASSISTANT_HAS_OWN_NUMBER) === 'true';
+export const DEFAULT_AGENT_MODEL =
+  process.env.AGENT_MODEL || envConfig.AGENT_MODEL || undefined;
 export const POLL_INTERVAL = 2000;
 export const SCHEDULER_POLL_INTERVAL = 60000;
 

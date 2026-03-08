@@ -38,6 +38,7 @@ export interface ContainerInput {
   isMain: boolean;
   isScheduledTask?: boolean;
   assistantName?: string;
+  model?: string;
   secrets?: Record<string, string>;
 }
 
@@ -233,10 +234,14 @@ function buildContainerArgs(
   // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
 
-  // Pass OPENAI_API_KEY so Bash subprocesses (scripts, tools) can use it
-  const { OPENAI_API_KEY } = readEnvFile(['OPENAI_API_KEY']);
-  if (OPENAI_API_KEY) {
-    args.push('-e', `OPENAI_API_KEY=${OPENAI_API_KEY}`);
+  // Pass API keys so Bash subprocesses (scripts, tools) can use them
+  const envKeys = readEnvFile([
+    'OPENAI_API_KEY',
+    'FEISHU_APP_ID',
+    'FEISHU_APP_SECRET',
+  ]);
+  for (const [key, value] of Object.entries(envKeys)) {
+    if (value) args.push('-e', `${key}=${value}`);
   }
 
   // Run as host user so bind-mounted files are accessible.

@@ -1,8 +1,15 @@
 import { ChildProcess } from 'child_process';
 import { CronExpressionParser } from 'cron-parser';
 import fs from 'fs';
+import path from 'path';
 
-import { ASSISTANT_NAME, SCHEDULER_POLL_INTERVAL, TIMEZONE } from './config.js';
+import {
+  ASSISTANT_NAME,
+  DEFAULT_AGENT_MODEL,
+  GROUPS_DIR,
+  SCHEDULER_POLL_INTERVAL,
+  TIMEZONE,
+} from './config.js';
 import {
   ContainerOutput,
   runContainerAgent,
@@ -20,6 +27,15 @@ import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { logger } from './logger.js';
 import { RegisteredGroup, ScheduledTask } from './types.js';
+
+function getGroupModel(groupFolder: string): string | undefined {
+  const modelFile = path.join(GROUPS_DIR, groupFolder, 'model.txt');
+  try {
+    const model = fs.readFileSync(modelFile, 'utf-8').trim();
+    if (model) return model;
+  } catch {}
+  return DEFAULT_AGENT_MODEL;
+}
 
 /**
  * Compute the next run time for a recurring task, anchored to the
@@ -179,6 +195,7 @@ async function runTask(
         isMain,
         isScheduledTask: true,
         assistantName: ASSISTANT_NAME,
+        model: getGroupModel(task.group_folder),
       },
       (proc, containerName) =>
         deps.onProcess(task.chat_jid, proc, containerName, task.group_folder),
